@@ -1,0 +1,39 @@
+name: run Il2CppDumper
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: unzip input
+        run: |
+          Z=$(ls il2cpp_input*.zip 2>/dev/null | head -1)
+          if [ ! -f input/libil2cpp.so ] && [ -n "$Z" ]; then unzip -o "$Z"; fi
+          test -f input/libil2cpp.so
+          test -f input/global-metadata.dat
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: get Il2CppDumper
+        run: |
+          curl -fsSL -o il2cppdumper.zip https://github.com/Perfare/Il2CppDumper/releases/latest/download/Il2CppDumper-net8.zip
+          unzip -q il2cppdumper.zip -d il2cppdumper
+
+      - name: run dumper
+        run: |
+          mkdir -p out
+          cd il2cppdumper
+          dotnet Il2CppDumper.dll "$GITHUB_WORKSPACE/input/libil2cpp.so" "$GITHUB_WORKSPACE/input/global-metadata.dat" "$GITHUB_WORKSPACE/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: il2cpp-dump
+          path: out/
